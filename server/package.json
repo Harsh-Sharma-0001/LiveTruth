@@ -1,0 +1,25 @@
+{
+  "name": "livetruth-server",
+  "version": "1.0.0",
+  "description": "Backend server for LiveTruth",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "compromise": "^14.12.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "natural": "^6.10.3",
+    "nodemailer": "^7.0.12",
+    "socket.io": "^4.6.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
