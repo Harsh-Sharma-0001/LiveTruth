@@ -128,6 +128,7 @@ function LiveTranscript({ transcript, claims, processingClaim, sessionTime }) {
       case 'false':
         return 'underline decoration-red-500';
       case 'misleading':
+      case 'mixed':
         return 'underline decoration-yellow-500';
       default:
         return '';
@@ -172,7 +173,7 @@ function LiveTranscript({ transcript, claims, processingClaim, sessionTime }) {
                   textDecorationColor: 
                     segment.type === 'true' ? '#22c55e' :
                     segment.type === 'false' ? '#ef4444' :
-                    segment.type === 'misleading' ? '#eab308' : 'transparent',
+                    (segment.type === 'misleading' || segment.type === 'mixed') ? '#eab308' : 'transparent',
                   fontWeight: segment.type !== 'normal' ? '500' : 'normal'
                 }}
               >

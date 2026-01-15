@@ -20,14 +20,28 @@ router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Email is required' 
+      });
     }
 
     // Check if user exists (in production, check database)
+    // Note: Since users are stored in localStorage on frontend, 
+    // the frontend should validate first. This is a secondary check.
     const users = JSON.parse(process.env.DEMO_USERS || '[]');
     const user = users.find(u => u.email === email);
     
-    // Always return success (security: don't reveal if email exists)
+    // If DEMO_USERS is set and user doesn't exist, return error
+    // Otherwise, proceed (frontend validation is primary)
+    if (users.length > 0 && !user) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'This email is not registered. Please register first or use a registered email address.',
+        message: 'Email not found in registered users.'
+      });
+    }
+    
     const otp = generateOTP();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -45,7 +59,7 @@ router.post('/forgot-password', async (req, res) => {
         }
         res.json({ 
           success: true, 
-          message: 'If an account exists with this email, an OTP has been sent to your email address.' 
+          message: 'OTP sent to your email! Please check your inbox.' 
         });
       } else {
         // Email service not configured
@@ -76,7 +90,10 @@ router.post('/forgot-password', async (req, res) => {
     }
   } catch (error) {
     console.error('Forgot password error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 });
 
@@ -126,68 +143,40 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 /**
- * POST /api/auth/social-login
- * Handle social login (Google/GitHub)
+ * GET /api/auth/me
+ * Get current user from JWT token
  */
-router.post('/social-login', async (req, res) => {
+router.get('/me', async (req, res) => {
   try {
-    console.log('📥 Social login request received');
-    console.log('   Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('   Body:', JSON.stringify(req.body, null, 2));
-    console.log('   Body type:', typeof req.body);
-    console.log('   Body keys:', Object.keys(req.body || {}));
-    
-    const { provider } = req.body || {};
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    if (!provider) {
-      console.log('❌ Provider missing in request body. Body:', req.body);
-      return res.status(400).json({ 
+    if (!token) {
+      return res.status(401).json({ 
         success: false,
-        error: 'Provider is required. Please send { "provider": "google" } or { "provider": "github" }' 
+        error: 'No token provided' 
       });
     }
 
-    if (provider !== 'google' && provider !== 'github') {
-      console.log('❌ Invalid provider:', provider);
-      return res.status(400).json({ 
+    const { verifyToken } = await import('../utils/jwt.js');
+    const decoded = verifyToken(token);
+
+    if (!decoded) {
+      return res.status(403).json({ 
         success: false,
-        error: 'Invalid provider. Use "google" or "github"' 
+        error: 'Invalid or expired token' 
       });
     }
 
-    // Generate unique user data for demo
-    // In production, verify OAuth token and get real user data from provider
-    const timestamp = Date.now();
-    const randomId = Math.floor(Math.random() * 10000);
-    
-    let userData;
-    if (provider === 'google') {
-      userData = {
-        name: `Social User`,
-        email: `social@google.com`,
-        provider: 'google',
-        picture: null
-      };
-    } else if (provider === 'github') {
-      userData = {
-        name: `Social User`,
-        email: `social@github.com`,
-        provider: 'github',
-        username: `socialuser`
-      };
-    }
-
-    console.log('✅ Social login successful for:', provider);
     res.json({ 
-      success: true, 
-      message: `Social login successful with ${provider}`,
-      user: userData
+      success: true,
+      user: decoded
     });
   } catch (error) {
-    console.error('❌ Social login error:', error);
+    console.error('Get user error:', error);
     res.status(500).json({ 
       success: false,
-      error: error.message || 'Internal server error' 
+      error: 'Internal server error' 
     });
   }
 });

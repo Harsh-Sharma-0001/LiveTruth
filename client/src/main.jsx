@@ -9,6 +9,7 @@ import SessionsPage from './pages/SessionsPage.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
 import ExportPage from './pages/ExportPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
+import OAuthCallback from './pages/OAuthCallback.jsx'
 import TermsPage from './pages/TermsPage.jsx'
 import PrivacyPage from './pages/PrivacyPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -141,6 +142,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         
         {/* Public Routes - No Authentication Required */}
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/auth/callback" element={<OAuthCallback />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/help" element={<HelpPage />} />
         <Route path="/terms" element={<TermsPage />} />

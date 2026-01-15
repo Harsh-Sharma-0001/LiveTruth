@@ -26,49 +26,60 @@ function App() {
   const interimTextRef = useRef('');
 
   useEffect(() => {
+    // Auto-logout: Clear session data when tab/browser is closed
+    const handleBeforeUnload = () => {
+      // Clear auth data but keeps preferences like dark mode
+      localStorage.removeItem('livetruth_user');
+      localStorage.removeItem('livetruth_token');
+      // Note: We don't clear preferences like livetruth_darkMode or livetruth_autoSave
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  useEffect(() => {
     // Initialize Socket.IO connection with better error handling
     socketRef.current = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      timeout: 20000
+      reconnectionAttempts: Infinity, // Keep trying to reconnect
+      timeout: 20000,
+      forceNew: false,
+      autoConnect: true
     });
 
     socketRef.current.on('connect', () => {
-      console.log('✅ Connected to server');
       setServerConnected(true);
     });
 
     socketRef.current.on('disconnect', (reason) => {
-      // Only log if it's not a normal client disconnect (e.g., navigating away)
-      if (reason !== 'io client disconnect') {
-        console.log('❌ Disconnected from server:', reason);
-      }
       setServerConnected(false);
+      // Only log if it's not a normal client disconnect
+      if (reason === 'io server disconnect') {
+        // Server disconnected, try to reconnect
+        socketRef.current.connect();
+      }
     });
 
     socketRef.current.on('connect_error', (error) => {
-      // Only log if it's not a normal connection attempt
-      if (error.message && !error.message.includes('xhr poll error')) {
-        console.warn('⚠️ Server connection error (server may not be running):', error.message);
-      }
       setServerConnected(false);
+      // Silently handle connection errors - server may not be running
+      // Don't log to console to avoid noise
     });
 
-    socketRef.current.on('reconnect_attempt', () => {
-      console.log('🔄 Attempting to reconnect to server...');
-    });
-
-    socketRef.current.on('reconnect', (attemptNumber) => {
-      console.log(`✅ Reconnected to server after ${attemptNumber} attempts`);
+    socketRef.current.on('reconnect', () => {
       setServerConnected(true);
     });
 
     socketRef.current.on('reconnect_failed', () => {
-      console.warn('⚠️ Failed to reconnect. Please make sure the backend server is running.');
       setServerConnected(false);
+    });
+
+    socketRef.current.on('error', () => {
+      // Silently handle socket errors
     });
 
     socketRef.current.on('claim-processing', (data) => {
@@ -85,8 +96,6 @@ function App() {
       const newClaims = data.claims || [];
       
       if (newClaims.length > 0) {
-        console.log('📊 New claims received:', newClaims.map(c => `${c.verdict}: ${c.claim.substring(0, 30)}`));
-        
         // Add new claims to the list and calculate credibility
         setClaims(prev => {
           // Avoid duplicates by checking claim text (normalized)
@@ -108,7 +117,8 @@ function App() {
           // Calculate stats from ALL unique claims
           const trueCount = uniqueAllClaims.filter(c => c.verdict === 'true').length;
           const falseCount = uniqueAllClaims.filter(c => c.verdict === 'false').length;
-          const misleadingCount = uniqueAllClaims.filter(c => c.verdict === 'misleading').length;
+          // Count both 'misleading' and 'mixed' as MIXED
+          const misleadingCount = uniqueAllClaims.filter(c => c.verdict === 'misleading' || c.verdict === 'mixed').length;
           const total = trueCount + falseCount + misleadingCount;
           
           // Update stats immediately
@@ -119,20 +129,20 @@ function App() {
             total: total
           });
           
-          // Update credibility score based on true vs false ratio
+          // Update credibility score using the correct formula:
+          // score = (TRUE * 1.0 + MIXED * 0.5 - FALSE * 1.0) / total_sentences
+          // Then normalize to 0-100
           if (total > 0) {
-            // Calculate credibility: (true * 100 + misleading * 50 + false * 0) / total
-            const credibilityScore = Math.round(
-              (trueCount * 100 + misleadingCount * 50 + falseCount * 0) / total
-            );
+            const rawScore = (trueCount * 1.0 + misleadingCount * 0.5 - falseCount * 1.0) / total;
+            // Normalize to 0-100: (rawScore + 1) / 2 * 100
+            // rawScore ranges from -1 (all false) to +1 (all true)
+            // Normalize: (rawScore + 1) / 2 gives 0 to 1, then * 100 gives 0 to 100
+            const credibilityScore = Math.max(0, Math.min(100, Math.round(((rawScore + 1) / 2) * 100)));
             
             const oldScore = overallCredibility;
             setOverallCredibility(credibilityScore);
             setCredibilityChange(credibilityScore - oldScore);
-            console.log(`📊 Credibility: ${credibilityScore}% (${trueCount} true, ${falseCount} false, ${misleadingCount} misleading)`);
           }
-          
-          console.log(`📈 Stats updated: ${trueCount} TRUE, ${falseCount} FALSE, ${misleadingCount} MIXED`);
           
           return uniqueAllClaims;
         });
@@ -142,11 +152,8 @@ function App() {
       setProcessingClaim(null);
     });
 
-    socketRef.current.on('error', (error) => {
-      // Only log significant errors, not connection attempts
-      if (error.message && !error.message.includes('xhr poll error') && !error.message.includes('transport close')) {
-        console.warn('Socket error:', error.message);
-      }
+    socketRef.current.on('error', () => {
+      // Handle socket errors silently
     });
 
     return () => {
@@ -326,7 +333,7 @@ function App() {
           // Save to localStorage
           localStorage.setItem('livetruth_sessions', JSON.stringify(updatedSessions));
           
-          console.log('✅ Session saved:', session);
+          // Session saved
         }, 500);
       }
       sessionStartRef.current = null;
@@ -350,18 +357,19 @@ function App() {
       setTranscript(accumulatedTranscriptRef.current);
       interimTextRef.current = '';
       
-      // Process the FULL accumulated transcript for claims (not just new segment)
-      // This ensures we check all statements together
-      if (socketRef.current && accumulatedTranscriptRef.current.trim().length > 10) {
+      // Process ONLY the new final segment (Chunking)
+      if (socketRef.current && text.trim().length > 10) {
         // Detect potential claims and set as processing
         const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
         const lastSentence = sentences[sentences.length - 1];
         if (lastSentence) {
           setProcessingClaim(lastSentence.trim());
         }
-        // Send the FULL accumulated transcript for processing (so all claims are checked)
-        socketRef.current.emit('transcript', { 
-          text: accumulatedTranscriptRef.current, 
+        
+        // Send ONLY the new chunk for processing
+        // This implements the "Chunking" requirement to prevent context overflow
+        socketRef.current.emit('process-chunk', { 
+          text: text, 
           isFinal 
         });
       }

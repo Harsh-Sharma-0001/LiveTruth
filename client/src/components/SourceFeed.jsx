@@ -18,6 +18,7 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
           </svg>
         );
       case 'misleading':
+      case 'mixed':
         return (
           <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -39,7 +40,8 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
       case 'false':
         return 'FALSE';
       case 'misleading':
-        return 'MISLEADING';
+      case 'mixed':
+        return 'MIXED';
       default:
         return 'CHECKING...';
     }
@@ -52,6 +54,7 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
       case 'false':
         return 'text-red-500';
       case 'misleading':
+      case 'mixed':
         return 'text-yellow-500';
       default:
         return 'text-gray-400';
@@ -96,14 +99,14 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
       </div>
 
       {/* Feed Content */}
-      <div className="max-h-[400px] md:max-h-[500px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937' }}>
+      <div className="overflow-hidden">
         {sortedClaims.length === 0 ? (
           <div className="px-6 py-8 text-center text-gray-500">
             <p>No claims verified yet. Start speaking to see real-time fact-checking...</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-700">
-            {sortedClaims.map((claim, index) => (
+            {sortedClaims.slice(0, 3).map((claim, index) => (
               <div key={index} className="px-6 py-4 hover:bg-gray-750 transition-colors">
                 <div className="flex items-start gap-3">
                   <div className="mt-1">

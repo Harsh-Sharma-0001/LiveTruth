@@ -1,169 +1,84 @@
+// geminiService.js
 import axios from 'axios';
 
-// Gemini API configuration
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
-/**
- * Check if Gemini API is configured
- */
 export function isGeminiConfigured() {
-  return GEMINI_API_KEY && 
-         GEMINI_API_KEY !== 'your_gemini_api_key_here' && 
-         GEMINI_API_KEY.length > 10;
+  // Read from process.env at runtime (not at module load time)
+  const apiKey = process.env.GEMINI_API_KEY;
+  
+  const isConfigured = Boolean(
+    apiKey && 
+    apiKey.length > 10 &&
+    apiKey !== 'your_gemini_api_key_here' &&
+    !apiKey.startsWith('your_')
+  );
+  
+  console.log(`🔧 [Gemini] isGeminiConfigured check:`, {
+    hasKey: !!apiKey,
+    keyLength: apiKey?.length || 0,
+    keyPreview: apiKey ? `${apiKey.substring(0, 10)}...` : 'none',
+    isConfigured
+  });
+  
+  return isConfigured;
 }
 
 /**
- * Verify a claim using Gemini AI - FAST and ACCURATE
- * Gemini has access to vast knowledge and can quickly verify facts
+ * Gemini NLI — ENTAILMENT / CONTRADICTION / NEUTRAL ONLY
  */
-export async function verifyClaimWithGemini(claimText) {
-  if (!isGeminiConfigured()) {
-    return null; // Fall back to other methods
-  }
+export async function performNLI(claimText, evidenceText, canonicalClaim) {
+  if (!isGeminiConfigured()) return null;
+
+  // Read API key at runtime
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   
-  try {
-    const prompt = `You are a fact-checking AI. Analyze the following claim and determine if it is TRUE, FALSE, or MISLEADING.
+  const today = new Date().toISOString().split('T')[0];
+  const timeContext = canonicalClaim?.time || 'present';
+
+  const prompt = `You are a Natural Language Inference (NLI) system. Your task is to determine if the EVIDENCE logically ENTAILS, CONTRADICTS, or is NEUTRAL to the CLAIM.
+
+CRITICAL RULES:
+1. ENTAILMENT: Use when evidence PROVES the claim is TRUE. Be decisive - if evidence confirms the claim, use ENTAILMENT.
+   Examples:
+   - Claim: "Tokyo is the capital of Japan"
+   - Evidence: "Tokyo is the capital and largest city of Japan"
+   - Answer: ENTAILMENT (evidence directly confirms the claim)
+
+2. CONTRADICTION: Use when evidence PROVES the claim is FALSE. Be decisive - if evidence contradicts the claim, use CONTRADICTION.
+   Examples:
+   - Claim: "Antarctica is on North Pole"
+   - Evidence: "Antarctica is located at the South Pole"
+   - Answer: CONTRADICTION (evidence directly contradicts the claim)
+
+3. NEUTRAL: Use ONLY when evidence is completely unrelated or provides no information about the claim.
+   Do NOT use NEUTRAL if evidence is related but you're uncertain - be decisive based on what the evidence says.
+
+Current date: ${today}
+Time context: ${timeContext}
 
 CLAIM: "${claimText}"
 
-Instructions:
-1. Use your knowledge to verify this claim
-2. Consider current facts (your knowledge includes information up to 2024)
-3. Be precise - if the claim is factually correct, say TRUE. If incorrect, say FALSE. If partially correct or needs context, say MISLEADING.
+EVIDENCE: "${evidenceText}"
 
-IMPORTANT: You must respond in EXACTLY this JSON format:
+Analyze: Does the evidence prove the claim TRUE (ENTAILMENT), prove it FALSE (CONTRADICTION), or provide no relevant information (NEUTRAL)?
+
+Respond ONLY with valid JSON:
 {
-  "verdict": "TRUE" or "FALSE" or "MISLEADING",
-  "confidence": 85,
-  "explanation": "Brief explanation of why this verdict was given",
-  "source": "Source of information (e.g., 'General knowledge', 'Wikipedia', etc.)"
-}
+  "relationship": "ENTAILMENT" | "CONTRADICTION" | "NEUTRAL",
+  "confidence": 0.0-1.0
+}`;
 
-Respond ONLY with the JSON, no other text.`;
-
-    const response = await axios.post(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-      {
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          temperature: 0.1, // Low temperature for factual responses
-          topK: 1,
-          topP: 0.95,
-          maxOutputTokens: 500
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      }
-    );
-
-    // Extract the text response
-    const textResponse = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!textResponse) {
-      console.log('⚠️ Empty Gemini response');
-      return null;
-    }
-
-    // Parse JSON from response
-    try {
-      // Clean up the response - remove markdown code blocks if present
-      let cleanedResponse = textResponse
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      
-      const result = JSON.parse(cleanedResponse);
-      
-      // Normalize verdict
-      let verdict = (result.verdict || '').toLowerCase();
-      if (verdict === 'true') verdict = 'true';
-      else if (verdict === 'false') verdict = 'false';
-      else if (verdict === 'misleading' || verdict === 'mixed') verdict = 'misleading';
-      else verdict = 'unverified';
-      
-      console.log(`🤖 Gemini verdict: ${verdict.toUpperCase()} (${result.confidence}%) - "${claimText.substring(0, 40)}..."`);
-      
-      return {
-        verdict: verdict,
-        confidence: result.confidence || 85,
-        explanation: result.explanation || 'Verified by Gemini AI.',
-        sources: [{
-          title: result.source || 'Gemini AI Fact Check',
-          url: 'https://gemini.google.com/',
-          snippet: result.explanation || 'Fact checked using Google Gemini AI.'
-        }]
-      };
-    } catch (parseError) {
-      console.log('⚠️ Failed to parse Gemini response:', textResponse.substring(0, 100));
-      return null;
-    }
-  } catch (error) {
-    if (error.response) {
-      console.error('❌ Gemini API Error:', error.response.status, error.response.data?.error?.message || error.message);
-    } else {
-      console.error('❌ Gemini API Error:', error.message);
-    }
-    return null;
-  }
-}
-
-/**
- * Batch verify multiple claims using Gemini - More efficient
- */
-export async function verifyMultipleClaimsWithGemini(claims) {
-  if (!isGeminiConfigured() || claims.length === 0) {
-    return null;
-  }
-  
   try {
-    const claimsList = claims.map((c, i) => `${i + 1}. "${c.text || c}"`).join('\n');
-    
-    const prompt = `You are a fact-checking AI. Analyze the following claims and determine if each is TRUE, FALSE, or MISLEADING.
-
-CLAIMS:
-${claimsList}
-
-Instructions:
-1. Use your knowledge to verify each claim
-2. Consider current facts (your knowledge includes information up to 2024)
-3. Be precise and accurate
-
-IMPORTANT: Respond in EXACTLY this JSON format (array of results):
-[
-  {
-    "claim_number": 1,
-    "verdict": "TRUE" or "FALSE" or "MISLEADING",
-    "confidence": 85,
-    "explanation": "Brief explanation"
-  }
-]
-
-Respond ONLY with the JSON array, no other text.`;
-
     const response = await axios.post(
       `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
       {
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
+        contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.1,
+          temperature: 0.0,
           topK: 1,
-          topP: 0.95,
-          maxOutputTokens: 2000
+          topP: 0.8,
+          maxOutputTokens: 200
         },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -172,46 +87,50 @@ Respond ONLY with the JSON array, no other text.`;
           { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
         ]
       },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 15000
-      }
+      { timeout: 10000 }
     );
 
-    const textResponse = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const raw =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!raw) return null;
+
+    let cleaned = raw.replace(/```json|```/g, '').trim();
     
-    if (!textResponse) {
+    // Try to extract JSON if wrapped in other text
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleaned = jsonMatch[0];
+    }
+    
+    const parsed = JSON.parse(cleaned);
+
+    let relationship = (parsed.relationship || '').toUpperCase().trim();
+    
+    // Normalize relationship values
+    if (relationship.includes('ENTAIL') || relationship === 'TRUE' || relationship === 'SUPPORT') {
+      relationship = 'ENTAILMENT';
+    } else if (relationship.includes('CONTRADICT') || relationship === 'FALSE' || relationship === 'DISPROVE') {
+      relationship = 'CONTRADICTION';
+    } else if (relationship.includes('NEUTRAL') || relationship === 'UNKNOWN' || relationship === 'UNCLEAR') {
+      relationship = 'NEUTRAL';
+    }
+    
+    if (!['ENTAILMENT', 'CONTRADICTION', 'NEUTRAL'].includes(relationship)) {
       return null;
     }
 
-    try {
-      let cleanedResponse = textResponse
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      
-      const results = JSON.parse(cleanedResponse);
-      
-      return results.map(result => ({
-        verdict: (result.verdict || '').toLowerCase() === 'true' ? 'true' : 
-                 (result.verdict || '').toLowerCase() === 'false' ? 'false' : 
-                 (result.verdict || '').toLowerCase() === 'misleading' ? 'misleading' : 'unverified',
-        confidence: result.confidence || 85,
-        explanation: result.explanation || 'Verified by Gemini AI.',
-        sources: [{
-          title: 'Gemini AI Fact Check',
-          url: 'https://gemini.google.com/',
-          snippet: result.explanation || 'Fact checked using Google Gemini AI.'
-        }]
-      }));
-    } catch (parseError) {
-      console.log('⚠️ Failed to parse batch Gemini response');
-      return null;
-    }
+    return {
+      relationship,
+      confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5))
+    };
   } catch (error) {
-    console.error('❌ Gemini batch API Error:', error.message);
+    // Log error for debugging
+    console.error('❌ [Gemini] NLI Error:', error.message);
+    if (error.response) {
+      console.error('❌ [Gemini] Response status:', error.response.status);
+      console.error('❌ [Gemini] Response data:', JSON.stringify(error.response.data).substring(0, 200));
+    }
     return null;
   }
 }

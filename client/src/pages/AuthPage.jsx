@@ -28,7 +28,59 @@ function AuthPage() {
     
     // If user is already authenticated, redirect to dashboard
     if (token && user) {
-      navigate('/', { replace: true });
+      // Check if it's a demo token (for local development)
+      if (token.startsWith('demo_token_')) {
+        // Demo token - just redirect
+        navigate('/', { replace: true });
+        return;
+      }
+      
+      // For JWT tokens, verify token is not expired
+      try {
+        if (token.includes('.')) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const currentTime = Date.now() / 1000;
+          
+          if (payload.exp && payload.exp < currentTime) {
+            // Token expired
+            localStorage.removeItem('livetruth_token');
+            localStorage.removeItem('livetruth_user');
+          } else {
+            navigate('/', { replace: true });
+          }
+        } else {
+          // Non-JWT token - accept it
+          navigate('/', { replace: true });
+        }
+      } catch (error) {
+        // If token parsing fails but it's a demo token, accept it
+        if (token.startsWith('demo_token_')) {
+          navigate('/', { replace: true });
+        } else {
+          // Invalid token
+          localStorage.removeItem('livetruth_token');
+          localStorage.removeItem('livetruth_user');
+        }
+      }
+    }
+
+    // Check for OAuth errors in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthError = urlParams.get('error');
+    if (oauthError) {
+      if (oauthError === 'oauth_failed' || oauthError === 'oauth_processing_failed') {
+        setError('OAuth authentication failed. Please try again.');
+      } else if (oauthError === 'oauth_incomplete') {
+        setError('OAuth authentication incomplete. Please try again.');
+      } else if (oauthError === 'google_oauth_not_configured' || oauthError === 'github_oauth_not_configured') {
+        setError('OAuth is not configured on the server. Please contact the administrator.');
+      } else if (oauthError === 'google_auth_failed') {
+        setError('Google authentication failed. Please try again.');
+      } else if (oauthError === 'github_auth_failed') {
+        setError('GitHub authentication failed. Please try again.');
+      }
+      // Clean URL
+      window.history.replaceState({}, document.title, '/auth');
     }
   }, [navigate]);
 
@@ -94,7 +146,10 @@ function AuthPage() {
           }));
           localStorage.setItem('livetruth_token', 'demo_token_' + Date.now());
           setSuccess('Login successful! Redirecting...');
-          setTimeout(() => navigate('/'), 1500);
+          // Navigate immediately - the success message will show briefly
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 1000);
         } else {
           // Check if email exists
           const emailExists = users.find(u => u.email === formData.email);
@@ -141,7 +196,10 @@ function AuthPage() {
         localStorage.setItem('livetruth_token', 'demo_token_' + Date.now());
         
         setSuccess('Account created successfully! Redirecting...');
-        setTimeout(() => navigate('/'), 1500);
+        // Navigate immediately - the success message will show briefly
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 1000);
       }
       
       setLoading(false);
@@ -202,8 +260,8 @@ function AuthPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Error/Success Messages */}
-              {error && (
+              {/* Error/Success Messages - Hide when modal is open */}
+              {!showForgotPassword && error && (
                 <div className="bg-red-600/20 border border-red-600/50 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
                   <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -211,7 +269,7 @@ function AuthPage() {
                   {error}
                 </div>
               )}
-              {success && (
+              {!showForgotPassword && success && (
                 <div className="bg-green-600/20 border border-green-600/50 text-green-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
                   <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -281,7 +339,11 @@ function AuthPage() {
                 <div className="text-right">
                   <button 
                     type="button" 
-                    onClick={() => setShowForgotPassword(true)}
+                    onClick={() => {
+                      setShowForgotPassword(true);
+                      setError(''); // Clear any existing errors
+                      setSuccess(''); // Clear any existing success messages
+                    }}
                     className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
                   >
                     Forgot password?
@@ -291,8 +353,8 @@ function AuthPage() {
 
               {/* Forgot Password Modal */}
               {showForgotPassword && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 max-w-md w-full">
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                  <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 max-w-md w-full z-[101] relative">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-xl font-bold">Reset Password</h3>
                       <button
@@ -303,6 +365,8 @@ function AuthPage() {
                           setOtp('');
                           setNewPassword('');
                           setConfirmNewPassword('');
+                          setError(''); // Clear errors when closing modal
+                          setSuccess(''); // Clear success when closing modal
                         }}
                         className="text-gray-400 hover:text-white"
                       >
@@ -314,6 +378,23 @@ function AuthPage() {
 
                     {!otpSent ? (
                       <div className="space-y-4">
+                        {/* Error/Success Messages inside Modal */}
+                        {error && (
+                          <div className="bg-red-600/20 border border-red-600/50 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {error}
+                          </div>
+                        )}
+                        {success && (
+                          <div className="bg-green-600/20 border border-green-600/50 text-green-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            {success}
+                          </div>
+                        )}
                         <p className="text-gray-400 text-sm">Enter your email address and we'll send you an OTP to reset your password.</p>
                         <div>
                           <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
@@ -332,7 +413,23 @@ function AuthPage() {
                               setError('Please enter a valid email address');
                               return;
                             }
+                            
+                            // Check if user is registered
+                            const users = JSON.parse(localStorage.getItem('livetruth_users') || '[]');
+                            const userExists = users.find(u => u.email === forgotPasswordEmail);
+                            
+                            if (!userExists) {
+                              setError('This email is not registered. Please register first or use a registered email address.');
+                              return;
+                            }
+                            
+                            // Show success message immediately (optimistic UI)
+                            setOtpSent(true);
+                            setSuccess('OTP sent to your email! Please check your inbox.');
+                            setError(''); // Clear any previous errors
                             setLoading(true);
+                            
+                            // Make API call in the background
                             try {
                               const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
                                 method: 'POST',
@@ -340,17 +437,18 @@ function AuthPage() {
                                 body: JSON.stringify({ email: forgotPasswordEmail })
                               });
                               const data = await response.json();
-                              if (response.ok && data.success) {
-                                setOtpSent(true);
-                                setSuccess(data.message || 'OTP sent to your email! Please check your inbox.');
-                                setError(''); // Clear any previous errors
-                              } else {
+                              if (!response.ok || !data.success) {
+                                // If API call fails, revert optimistic update and show error
+                                setOtpSent(false);
                                 setError(data.error || data.message || 'Failed to send OTP. Please try again.');
-                                setSuccess(''); // Clear any previous success messages
+                                setSuccess(''); // Clear success message
                               }
                             } catch (err) {
                               console.error('Forgot password error:', err);
+                              // If API call fails, revert optimistic update and show error
+                              setOtpSent(false);
                               setError('Failed to send OTP. Please check your connection and try again.');
+                              setSuccess(''); // Clear success message
                             }
                             setLoading(false);
                           }}
@@ -361,6 +459,23 @@ function AuthPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
+                        {/* Error/Success Messages inside Modal */}
+                        {error && (
+                          <div className="bg-red-600/20 border border-red-600/50 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {error}
+                          </div>
+                        )}
+                        {success && (
+                          <div className="bg-green-600/20 border border-green-600/50 text-green-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            {success}
+                          </div>
+                        )}
                         <p className="text-gray-400 text-sm">Enter the OTP sent to your email and your new password.</p>
                         <div>
                           <label className="block text-sm font-medium text-gray-300 mb-2">OTP</label>
@@ -481,73 +596,19 @@ function AuthPage() {
                   onClick={async () => {
                     setLoading(true);
                     setError('');
-                    setSuccess('');
-                    
                     try {
-                      // Call backend social login endpoint
-                      const response = await fetch('http://localhost:5000/api/auth/social-login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ provider: 'google' })
-                      });
-                      
-                      let data;
-                      try {
-                        data = await response.json();
-                      } catch (parseError) {
-                        throw new Error('Server returned invalid response. Please check if the server is running.');
+                      // Check if OAuth is configured
+                      const statusRes = await fetch('http://localhost:5000/api/oauth/status');
+                      const status = await statusRes.json();
+                      if (!status.google.configured) {
+                        setError('Google OAuth is not configured on the server. Please contact the administrator.');
+                        setLoading(false);
+                        return;
                       }
-                      
-                      if (!response.ok) {
-                        throw new Error(data.error || data.message || `Server error: ${response.status}`);
-                      }
-                      
-                      if (data.success && data.user) {
-                        // Check if user already exists
-                        const users = JSON.parse(localStorage.getItem('livetruth_users') || '[]');
-                        let existingUser = users.find(u => u.email === data.user.email);
-                        
-                        if (!existingUser) {
-                          // Create new user
-                          existingUser = {
-                            name: data.user.name || 'Google User',
-                            email: data.user.email,
-                            password: null, // No password for social login
-                            provider: 'google',
-                            joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-                            sessions: 0,
-                            claimsVerified: 0,
-                            avgCredibility: 0
-                          };
-                          users.push(existingUser);
-                          localStorage.setItem('livetruth_users', JSON.stringify(users));
-                        }
-                        
-                        // Set user session
-                        localStorage.setItem('livetruth_user', JSON.stringify({
-                          name: existingUser.name,
-                          email: existingUser.email,
-                          provider: existingUser.provider,
-                          joinedDate: existingUser.joinedDate,
-                          sessions: existingUser.sessions || 0,
-                          claimsVerified: existingUser.claimsVerified || 0,
-                          avgCredibility: existingUser.avgCredibility || 0
-                        }));
-                        localStorage.setItem('livetruth_token', 'google_token_' + Date.now());
-                        
-                        setSuccess('Signed in with Google! Redirecting...');
-                        setTimeout(() => navigate('/'), 1500);
-                      } else {
-                        throw new Error(data.error || 'Login failed');
-                      }
+                      // Redirect to Google OAuth endpoint
+                      window.location.href = 'http://localhost:5000/api/auth/google';
                     } catch (err) {
-                      console.error('Google login error:', err);
-                      // Check if it's a network error
-                      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.name === 'TypeError') {
-                        setError('Cannot connect to server. Please make sure the backend server is running on port 5000. Run "npm start" in the server directory.');
-                      } else {
-                        setError(err.message || 'Failed to sign in with Google. Please try again.');
-                      }
+                      setError('Failed to connect to server. Please try again.');
                       setLoading(false);
                     }
                   }}
@@ -567,75 +628,19 @@ function AuthPage() {
                   onClick={async () => {
                     setLoading(true);
                     setError('');
-                    setSuccess('');
-                    
                     try {
-                      // Call backend social login endpoint
-                      const response = await fetch('http://localhost:5000/api/auth/social-login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ provider: 'github' })
-                      });
-                      
-                      let data;
-                      try {
-                        data = await response.json();
-                      } catch (parseError) {
-                        throw new Error('Server returned invalid response. Please check if the server is running.');
+                      // Check if OAuth is configured
+                      const statusRes = await fetch('http://localhost:5000/api/oauth/status');
+                      const status = await statusRes.json();
+                      if (!status.github.configured) {
+                        setError('GitHub OAuth is not configured on the server. Please contact the administrator.');
+                        setLoading(false);
+                        return;
                       }
-                      
-                      if (!response.ok) {
-                        throw new Error(data.error || data.message || `Server error: ${response.status}`);
-                      }
-                      
-                      if (data.success && data.user) {
-                        // Check if user already exists
-                        const users = JSON.parse(localStorage.getItem('livetruth_users') || '[]');
-                        let existingUser = users.find(u => u.email === data.user.email);
-                        
-                        if (!existingUser) {
-                          // Create new user
-                          existingUser = {
-                            name: data.user.name || 'GitHub User',
-                            email: data.user.email,
-                            password: null, // No password for social login
-                            provider: 'github',
-                            username: data.user.username,
-                            joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-                            sessions: 0,
-                            claimsVerified: 0,
-                            avgCredibility: 0
-                          };
-                          users.push(existingUser);
-                          localStorage.setItem('livetruth_users', JSON.stringify(users));
-                        }
-                        
-                        // Set user session
-                        localStorage.setItem('livetruth_user', JSON.stringify({
-                          name: existingUser.name,
-                          email: existingUser.email,
-                          provider: existingUser.provider,
-                          username: existingUser.username,
-                          joinedDate: existingUser.joinedDate,
-                          sessions: existingUser.sessions || 0,
-                          claimsVerified: existingUser.claimsVerified || 0,
-                          avgCredibility: existingUser.avgCredibility || 0
-                        }));
-                        localStorage.setItem('livetruth_token', 'github_token_' + Date.now());
-                        
-                        setSuccess('Signed in with GitHub! Redirecting...');
-                        setTimeout(() => navigate('/'), 1500);
-                      } else {
-                        throw new Error(data.error || 'Login failed');
-                      }
+                      // Redirect to GitHub OAuth endpoint
+                      window.location.href = 'http://localhost:5000/api/auth/github';
                     } catch (err) {
-                      console.error('GitHub login error:', err);
-                      // Check if it's a network error
-                      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.name === 'TypeError') {
-                        setError('Cannot connect to server. Please make sure the backend server is running on port 5000. Run "npm start" in the server directory.');
-                      } else {
-                        setError(err.message || 'Failed to sign in with GitHub. Please try again.');
-                      }
+                      setError('Failed to connect to server. Please try again.');
                       setLoading(false);
                     }
                   }}

@@ -13,11 +13,20 @@
     "clean-install": "npm cache clean --force && npm install && cd server && npm cache clean --force && npm install && cd ../client && npm cache clean --force && npm install",
     "postinstall": "echo Installation complete! Please set up .env files before running."
   },
-  "keywords": ["fact-checking", "speech", "ai", "ml"],
+  "keywords": [
+    "fact-checking",
+    "speech",
+    "ai",
+    "ml"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2",
     "nodemon": "^3.0.2"
+  },
+  "dependencies": {
+    "@google/genai": "^1.35.0",
+    "axios": "^1.13.2"
   }
 }

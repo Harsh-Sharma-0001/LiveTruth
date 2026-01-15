@@ -35,8 +35,12 @@ function HelpPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(false);
     
+    // Show success message immediately (optimistic UI)
+    setSubmitted(true);
+    const formDataSnapshot = { ...contactForm };
+    
+    // Make API call in the background
     try {
       const response = await fetch('http://localhost:5000/api/contact', {
         method: 'POST',
@@ -47,16 +51,20 @@ function HelpPage() {
       const data = await response.json();
       
       if (response.ok && data.success) {
-        setSubmitted(true);
+        // Success - keep the optimistic UI state
         setTimeout(() => {
           setContactForm({ name: '', email: '', message: '' });
           setSubmitted(false);
         }, 3000);
       } else {
+        // If API call fails, revert optimistic update and show error
+        setSubmitted(false);
         console.error('Contact form error:', data.error || data.message);
         alert(data.error || data.message || 'Failed to send message. Please try again.');
       }
     } catch (error) {
+      // If API call fails, revert optimistic update and show error
+      setSubmitted(false);
       console.error('Contact form error:', error);
       alert('Failed to send message. Please check your connection and try again.');
     }

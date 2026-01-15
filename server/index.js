@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
+import session from 'express-session';
+import passport from 'passport';
 
 // Get current directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +58,13 @@ if (loaded) {
   console.log('   GMAIL_USER:', process.env.GMAIL_USER ? `${process.env.GMAIL_USER.substring(0, 5)}...${process.env.GMAIL_USER.substring(process.env.GMAIL_USER.length - 5)}` : 'undefined');
   console.log('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? `${process.env.GMAIL_APP_PASSWORD.length} chars (${process.env.GMAIL_APP_PASSWORD.substring(0, 4)}...${process.env.GMAIL_APP_PASSWORD.substring(process.env.GMAIL_APP_PASSWORD.length - 4)})` : 'undefined');
   console.log('   DEVELOPER_EMAIL:', process.env.DEVELOPER_EMAIL ? `${process.env.DEVELOPER_EMAIL.substring(0, 5)}...` : 'undefined');
+  
+  // Verify OAuth variables
+  console.log('🔍 OAuth Configuration:');
+  console.log('   GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? `${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...` : 'undefined');
+  console.log('   GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? `${process.env.GOOGLE_CLIENT_SECRET.substring(0, 4)}...` : 'undefined');
+  console.log('   GITHUB_CLIENT_ID:', process.env.GITHUB_CLIENT_ID ? `${process.env.GITHUB_CLIENT_ID.substring(0, 10)}...` : 'undefined');
+  console.log('   GITHUB_CLIENT_SECRET:', process.env.GITHUB_CLIENT_SECRET ? `${process.env.GITHUB_CLIENT_SECRET.substring(0, 4)}...` : 'undefined');
 }
 
 // Initialize email service after dotenv has loaded
@@ -64,6 +73,7 @@ initializeEmailService();
 import claimRoutes from './routes/claims.js';
 import authRoutes from './routes/auth.js';
 import contactRoutes from './routes/contact.js';
+import oauthRoutes, { initializeOAuthStrategies } from './routes/oauth.js';
 import { initializeSocket } from './socket/socketHandler.js';
 import { processTranscript } from './services/mlService.js';
 // Import email service to initialize and log configuration (after dotenv.config)
@@ -108,8 +118,30 @@ const io = new Server(httpServer, {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  credentials: true
+}));
 app.use(express.json());
+
+// Session middleware (required for OAuth)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Initialize OAuth strategies (after dotenv has loaded)
+initializeOAuthStrategies();
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Database connection (optional - app works without it)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/livetruth';
@@ -123,10 +155,27 @@ mongoose.connect(MONGODB_URI)
 // Routes
 app.use('/api/claims', claimRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', oauthRoutes); // OAuth routes (google, github)
 app.use('/api/contact', contactRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'LiveTruth API is running' });
+});
+
+// OAuth configuration status endpoint
+app.get('/api/oauth/status', (req, res) => {
+  res.json({
+    google: {
+      configured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET
+    },
+    github: {
+      configured: !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+      hasClientId: !!process.env.GITHUB_CLIENT_ID,
+      hasClientSecret: !!process.env.GITHUB_CLIENT_SECRET
+    }
+  });
 });
 
 // Socket.IO connection handling

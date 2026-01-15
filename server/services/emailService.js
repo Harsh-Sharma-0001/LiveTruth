@@ -79,17 +79,20 @@ function logEmailConfiguration() {
     console.log(`✅ Developer Email: ${devEmail}`);
     console.log('✅ Gmail SMTP configured and ready');
     
-    // Test connection on startup
+    // Test connection on startup (non-blocking, emails will still work)
     setTimeout(async () => {
       try {
         const testTransporter = initializeTransporter();
         if (testTransporter) {
           await testTransporter.verify();
-          console.log('✅ Gmail SMTP connection verified successfully');
+          // Silent success - connection works
         }
       } catch (error) {
-        console.error('❌ Gmail SMTP connection test failed:', error.message);
-        console.error('   Please check your GMAIL_USER and GMAIL_APP_PASSWORD');
+        // Only log if it's not a timeout (timeouts are common and emails still work)
+        if (!error.message.includes('ETIMEDOUT') && !error.message.includes('timeout')) {
+          console.warn('⚠️ Gmail SMTP connection test failed (emails may still work):', error.message);
+        }
+        // Timeout errors are common and don't prevent emails from being sent
       }
     }, 1000);
   } else {

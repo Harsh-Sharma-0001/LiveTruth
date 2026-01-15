@@ -174,21 +174,32 @@ function Header({ isListening, setIsListening, onTranscript }) {
     };
   }, [isListening, setIsListening, onTranscript, language]);
 
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Reset processing state when listening state changes
+  useEffect(() => {
+    setIsProcessing(false);
+  }, [isListening]);
+
   const startListening = () => {
-    if (recognitionRef.current && !isListening) {
+    if (recognitionRef.current && !isListening && !isProcessing) {
+      setIsProcessing(true);
       try {
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting recognition:', error);
         setStatus('error');
+        setIsProcessing(false);
       }
     }
   };
 
   const stopListening = () => {
-    if (recognitionRef.current && isListening) {
+    if (recognitionRef.current && isListening && !isProcessing) {
+      setIsProcessing(true);
       recognitionRef.current.stop();
       setIsListening(false);
+      // Processing state will be reset by the useEffect above
     }
   };
 
@@ -241,29 +252,51 @@ function Header({ isListening, setIsListening, onTranscript }) {
           {!isListening ? (
             <button
               onClick={startListening}
-              className="relative flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl font-semibold transition-all duration-300 text-sm md:text-base shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              disabled={isProcessing}
+              className={`relative flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl font-semibold transition-all duration-300 text-sm md:text-base shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] ${
+                isProcessing ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              </svg>
-              <span className="hidden sm:inline">Start Listening</span>
-              <span className="sm:hidden">Start</span>
+              {isProcessing ? (
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              )}
+              <span className="hidden sm:inline">{isProcessing ? 'Starting...' : 'Start Listening'}</span>
+              <span className="sm:hidden">{isProcessing ? '...' : 'Start'}</span>
             </button>
           ) : (
             <button
               onClick={stopListening}
-              className="relative flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl font-semibold transition-all duration-300 text-sm md:text-base shadow-lg shadow-red-500/25 hover:shadow-red-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              disabled={isProcessing}
+              className={`relative flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl font-semibold transition-all duration-300 text-sm md:text-base shadow-lg shadow-red-500/25 hover:shadow-red-500/40 hover:scale-[1.02] active:scale-[0.98] ${
+                isProcessing ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
             >
-              {/* Pulsing indicator */}
-              <span className="absolute -top-1 -right-1 w-3 h-3">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-              </span>
-              <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-              <span className="hidden sm:inline">Stop Listening</span>
-              <span className="sm:hidden">Stop</span>
+              {/* Pulsing indicator - hide when processing */}
+              {!isProcessing && (
+                <span className="absolute -top-1 -right-1 w-3 h-3">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              )}
+              {isProcessing ? (
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+              )}
+              <span className="hidden sm:inline">{isProcessing ? 'Stopping...' : 'Stop Listening'}</span>
+              <span className="sm:hidden">{isProcessing ? '...' : 'Stop'}</span>
             </button>
           )}
 

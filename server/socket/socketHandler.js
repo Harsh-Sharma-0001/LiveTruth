@@ -2,10 +2,10 @@ import { processTranscript } from '../services/mlService.js';
 
 export function initializeSocket(io) {
   io.on('connection', (socket) => {
-    console.log('✅ Client connected:', socket.id);
+    // Client connected
 
-    // Handle transcript chunks from client
-    socket.on('transcript', async (data) => {
+    // Handle transcript chunks from client (Optimized Chunking)
+    socket.on('process-chunk', async (data) => {
       try {
         const { text, isFinal } = data;
         
@@ -13,27 +13,22 @@ export function initializeSocket(io) {
           return;
         }
 
-        // Process transcript for claims and verification immediately - REAL-TIME
+        // Process ONLY the received chunk
+        console.log(`📨 [Socket] Received chunk (${text.length} chars): "${text.substring(0, 50)}..."`);
+
         if (isFinal) {
-          // Process the new text segment immediately
-          console.log('🔍 Processing transcript for claims:', text.substring(0, 50) + '...');
-          
           try {
+            // Processing just this chunk, not the whole history
+            // usage of processTranscript implicitly handles the 'Two-stage pipeline' 
+            // via detectClaims inside mlService
             const results = await processTranscript(text);
             
-            console.log(`✅ Found ${results.length} verified claims`);
-            if (results.length > 0) {
-              console.log('Verdicts:', results.map(r => `${r.verdict.toUpperCase()}: "${r.claim.substring(0, 40)}"`));
-            }
-            
-            // ALWAYS send response, even if empty (to clear processing status)
             socket.emit('claims-verified', {
               transcript: text,
               claims: results || [],
               timestamp: new Date()
             });
 
-            // Broadcast to all clients (for demo purposes)
             if (results && results.length > 0) {
               io.emit('live-update', {
                 transcript: text,
@@ -41,7 +36,7 @@ export function initializeSocket(io) {
               });
             }
           } catch (error) {
-            console.error('❌ Error processing transcript:', error);
+            console.error('Error processing chunk:', error);
             socket.emit('claims-verified', {
               transcript: text,
               claims: [],
@@ -49,27 +44,10 @@ export function initializeSocket(io) {
               error: error.message
             });
           }
-        } else {
-          // For interim results, do quick claim detection (without full verification)
-          // This provides faster feedback
-          const { detectClaims } = await import('../services/mlService.js');
-          const detectedClaims = detectClaims(text);
-          
-          if (detectedClaims && detectedClaims.length > 0) {
-            // Send processing status
-            socket.emit('claim-processing', {
-              claims: detectedClaims.map(c => ({
-                claim: c.text,
-                verdict: 'unverified',
-                confidence: c.confidence,
-                entities: c.entities
-              }))
-            });
-          }
         }
       } catch (error) {
-        console.error('Error processing transcript:', error);
-        socket.emit('error', { message: 'Error processing transcript' });
+        console.error('Socket error:', error);
+        socket.emit('error', { message: 'Error processing transcript chunk' });
       }
     });
 
@@ -91,7 +69,7 @@ export function initializeSocket(io) {
     });
 
     socket.on('disconnect', () => {
-      console.log('❌ Client disconnected:', socket.id);
+      // Client disconnected
     });
   });
 }
