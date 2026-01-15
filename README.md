@@ -932,25 +932,26 @@ VITE_SOCKET_URL=http://localhost:5000
    - Free API access
    - Full paragraph context (not just snippets)
 
-### **Strengths**
+## Strengths
 
-   -✅ Real-time fact-checking with instant feedback
-   -✅ Sophisticated NLP pipeline with multiple fallbacks
-   -✅ User-friendly interface with dark mode
-   -✅ Comprehensive authentication (email, Google, GitHub)
-   -✅ Session management and analytics
-   -✅ Works offline (localStorage fallback)
-   -✅ Responsive design (mobile-friendly)
-   -✅ Source transparency (Wikipedia links)
+- ✅ Real-time claim verification with instant feedback
+- ✅ Multi-stage NLP pipeline with graceful fallbacks
+- ✅ Modern UI with dark mode support
+- ✅ Secure authentication (Email, Google, GitHub)
+- ✅ Robust session handling and usage analytics
+- ✅ Offline-first capability using localStorage
+- ✅ Fully responsive, mobile-first design
+- ✅ Transparent evidence sourcing via Wikipedia
+  
 
-### **Areas for Improvement**
+## **Areas for Improvement**
 
-   -⚠️ **Scalability**: WebSocket scaling needs Redis adapter
-   -⚠️ **Testing**: No automated tests currently
-   -⚠️ **Caching**: No Redis caching for API responses 
-   -⚠️ **Multi-language**: Only supports English (US)
-   -⚠️ **Evidence Sources**: Limited to Wikipedia (could add more)
-   -⚠️ **Claim Complexity**: Simple pattern matching (could use advanced NLP)
+- ⚠️ **Scalability:** WebSocket scaling needs Redis adapter
+- ⚠️ **Testing:** No automated tests currently
+- ⚠️ **Caching:** No Redis caching for API responses
+- ⚠️ **Multi-language:** Only supports English (US)
+- ⚠️ **Evidence Sources:** Limited to Wikipedia
+- ⚠️ **Claim Complexity:** Simple pattern matching
 
 ---
   
