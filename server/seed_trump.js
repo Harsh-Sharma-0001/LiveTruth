@@ -6,7 +6,7 @@ import { getEmbedding } from './services/embeddingService.js';
 // Load env
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/livetruth';
+const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/livetruth';
 
 const claimsToSeed = [
     {
