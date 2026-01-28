@@ -2,7 +2,10 @@
 
 **LiveTruth** is a high-performance, real-time fact-checking application that listens to live audio, transcribes it, and instantly verifies claims using a hybrid AI architecture. It combines the speed of traditional search APIs with the reasoning power of modern LLMs (Gemini 2.5 Flash Lite) to provide accurate, source-backed verdicts.
 
+
 ![LiveTruth Dashboard](./screenshots/dashboard-preview.png)
+ 
+
 
 ## 🚀 Key Features
 
