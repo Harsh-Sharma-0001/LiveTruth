@@ -1,0 +1,38 @@
+services:
+  # BACKEND SERVICE
+  - type: web
+    name: livetruth-server
+    env: node
+    region: singapore # Optional: chose closest region
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # User must enter this manually in dashboard
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_SEARCH_ENGINE_ID
+        sync: false
+      - key: CLIENT_URL
+        fromService:
+          type: static
+          name: livetruth-client
+          property: url
+      - key: NODE_ENV
+        value: production
+
+  # FRONTEND SERVICE
+  - type: static
+    name: livetruth-client
+    env: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_SOCKET_URL
+        fromService:
+          type: web
+          name: livetruth-server
+          property: url
