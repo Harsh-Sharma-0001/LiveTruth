@@ -96,11 +96,17 @@ function App() {
       const newClaims = data.claims || [];
       
       if (newClaims.length > 0) {
+        // CRITICAL FIX: Normalize verdicts to lowercase (backend sends uppercase)
+        const normalizedClaims = newClaims.map(claim => ({
+          ...claim,
+          verdict: claim.verdict?.toLowerCase() || 'mixed'
+        }));
+        
         // Add new claims to the list and calculate credibility
         setClaims(prev => {
           // Avoid duplicates by checking claim text (normalized)
           const existingTexts = new Set(prev.map(c => c.claim.toLowerCase().trim()));
-          const uniqueNewClaims = newClaims.filter(c => !existingTexts.has(c.claim.toLowerCase().trim()));
+          const uniqueNewClaims = normalizedClaims.filter(c => !existingTexts.has(c.claim.toLowerCase().trim()));
           const allClaims = [...uniqueNewClaims, ...prev];
           
           // Remove duplicates from all claims
@@ -147,6 +153,7 @@ function App() {
           return uniqueAllClaims;
         });
       }
+
 
       // Clear processing claim
       setProcessingClaim(null);
@@ -387,7 +394,8 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 dark:bg-blue transition-colors duration-300">
+    // FIX: Removed "bg-gray-50" and "dark:bg-gray-900". Added "text-gray-100" to ensure text is visible.
+    <div className="h-screen bg-[#1a1f2e] dark:bg-black text-gray-100 transition-colors duration-300 flex flex-col overflow-hidden">
       {/* Header */}
       <Header 
         isListening={isListening}
@@ -397,7 +405,7 @@ function App() {
 
       {/* Server Connection Warning */}
       {!serverConnected && (
-        <div className="bg-yellow-900/50 border-b border-yellow-700 px-4 py-2">
+        <div className="bg-yellow-900/50 border-b border-yellow-700 px-4 py-2 flex-none">
           <div className="container mx-auto max-w-7xl flex items-center gap-2 text-yellow-200 text-sm">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -408,26 +416,32 @@ function App() {
       )}
 
       {/* Main Content */}
-      <div className="container mx-auto px-6 py-8 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Live Transcript (2/3 width) */}
-          <div className="lg:col-span-2">
-            <LiveTranscript 
-              transcript={transcript}
-              claims={claims}
-              processingClaim={processingClaim}
-              sessionTime={formatTime(sessionTime)}
-            />
-          </div>
+      <div className="flex-1 overflow-hidden">
+        <div className="container mx-auto px-6 py-8 max-w-7xl h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
+            {/* Left Column - Live Transcript (2/3 width) */}
+            <div className="lg:col-span-2 h-full overflow-hidden">
+              <LiveTranscript 
+                transcript={transcript}
+                claims={claims}
+                processingClaim={processingClaim}
+                sessionTime={formatTime(sessionTime)}
+              />
+            </div>
 
-          {/* Right Column - Analytics & Feed (1/3 width) */}
-          <div className="space-y-6">
-            <SessionAnalytics 
-              credibility={overallCredibility}
-              credibilityChange={credibilityChange}
-              stats={stats}
-            />
-            <SourceFeed claims={claims} showAll={showAllClaims} onShowAll={() => setShowAllClaims(true)} onClose={() => setShowAllClaims(false)} />
+            {/* Right Column - Analytics & Feed (1/3 width) */}
+            <div className="flex flex-col gap-6 h-full overflow-hidden">
+              <div className="flex-none">
+                <SessionAnalytics 
+                  credibility={overallCredibility}
+                  credibilityChange={credibilityChange}
+                  stats={stats}
+                />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <SourceFeed claims={claims} showAll={showAllClaims} onShowAll={() => setShowAllClaims(true)} onClose={() => setShowAllClaims(false)} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

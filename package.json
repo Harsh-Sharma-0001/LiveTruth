@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
-    "axios": "^1.13.2"
+    "axios": "^1.13.2",
+    "bullmq": "^5.67.1",
+    "ioredis": "^5.9.2"
   }
 }

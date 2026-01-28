@@ -9,7 +9,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #111827; /* Default blueish gray */
+  background: #1a1f2e; /* Default blueish gray */
   min-height: 100vh;
   color: #f3f4f6;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -19,10 +19,6 @@ body.dark {
   background: #000000 !important; /* Pure black for dark mode */
 }
 
-/* Dark mode support for main container */
-.dark .bg-gray-900 {
-  background-color: #000000 !important;
-}
 
 * {
   box-sizing: border-box;
@@ -53,3 +49,4 @@ body.dark {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+

@@ -38,10 +38,12 @@ function SessionAnalytics({ credibility, credibilityChange, stats }) {
   };
 
   return (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+    // FIX: Default is gray-800, Dark mode is Black
+    <div className="bg-gray-800 dark:bg-gray-900 rounded-xl border border-gray-700 dark:border-gray-800 overflow-hidden shadow-lg transition-colors duration-300">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-700">
+      <div className="px-6 py-5 border-b border-gray-700 dark:border-gray-800">
         <div className="flex items-center justify-between">
+          {/* FIX: Text is white */}
           <h2 className="text-xl font-bold text-white">Session Analytics</h2>
           {credibilityChange !== 0 && (
             <div
@@ -79,16 +81,16 @@ function SessionAnalytics({ credibility, credibilityChange, stats }) {
               viewBox="0 0 200 100"
               preserveAspectRatio="xMidYMid meet"
             >
-              {/* Background Arc - Perfect semi-circle opening upward */}
+              {/* Background Arc */}
               <path
                 d="M 20 80 A 80 80 0 0 1 180 80"
                 fill="none"
-                stroke="#374151"
+                className="stroke-gray-700 dark:stroke-gray-800"
                 strokeWidth="12"
                 strokeLinecap="round"
               />
 
-              {/* Progress Arc - Perfect semi-circle opening upward */}
+              {/* Progress Arc */}
               <path
                 d="M 20 80 A 80 80 0 0 1 180 80"
                 fill="none"
@@ -106,7 +108,7 @@ function SessionAnalytics({ credibility, credibilityChange, stats }) {
               />
             </svg>
 
-            {/* Center Score - Positioned at the center of the arc */}
+            {/* Center Score */}
             <div 
               className="absolute flex items-center justify-center" 
               style={{ 
@@ -142,29 +144,29 @@ function SessionAnalytics({ credibility, credibilityChange, stats }) {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-green-700 rounded-xl p-5 text-center shadow-lg shadow-green-500/30 hover:shadow-green-500/40 transition-shadow">
+          <div className="bg-green-700/80 rounded-xl p-5 text-center shadow-lg shadow-green-500/20 hover:shadow-green-500/30 transition-shadow border border-green-600/30">
             <div className="text-4xl font-bold text-white mb-2">
               {stats.true || 0}
             </div>
-            <div className="text-sm font-bold text-white uppercase tracking-wide">
+            <div className="text-sm font-bold text-gray-100 uppercase tracking-wide">
               TRUE
             </div>
           </div>
 
-          <div className="bg-yellow-600 rounded-xl p-5 text-center shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/40 transition-shadow">
+          <div className="bg-yellow-600/80 rounded-xl p-5 text-center shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/30 transition-shadow border border-yellow-600/30">
             <div className="text-4xl font-bold text-white mb-2">
               {stats.misleading || 0}
             </div>
-            <div className="text-sm font-bold text-white uppercase tracking-wide">
+            <div className="text-sm font-bold text-gray-100 uppercase tracking-wide">
               MIXED
             </div>
           </div>
 
-          <div className="bg-red-600 rounded-xl p-5 text-center shadow-lg shadow-red-500/30 hover:shadow-red-500/40 transition-shadow">
+          <div className="bg-red-600/80 rounded-xl p-5 text-center shadow-lg shadow-red-500/20 hover:shadow-red-500/30 transition-shadow border border-red-600/30">
             <div className="text-4xl font-bold text-white mb-2">
               {stats.false || 0}
             </div>
-            <div className="text-sm font-bold text-white uppercase tracking-wide">
+            <div className="text-sm font-bold text-gray-100 uppercase tracking-wide">
               FALSE
             </div>
           </div>

@@ -1,73 +1,66 @@
-// geminiService.js
 import axios from 'axios';
 
+// Use Flash-Lite for higher speed and rate limits
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+let rateLimitUntil = 0;
+
+export function isRateLimited() {
+  return rateLimitUntil > Date.now();
+}
 
 export function isGeminiConfigured() {
-  // Read from process.env at runtime (not at module load time)
   const apiKey = process.env.GEMINI_API_KEY;
-  
   const isConfigured = Boolean(
     apiKey && 
     apiKey.length > 10 &&
     apiKey !== 'your_gemini_api_key_here' &&
     !apiKey.startsWith('your_')
   );
-  
-  console.log(`🔧 [Gemini] isGeminiConfigured check:`, {
-    hasKey: !!apiKey,
-    keyLength: apiKey?.length || 0,
-    keyPreview: apiKey ? `${apiKey.substring(0, 10)}...` : 'none',
-    isConfigured
-  });
-  
   return isConfigured;
 }
 
 /**
- * Gemini NLI — ENTAILMENT / CONTRADICTION / NEUTRAL ONLY
+ * BATCH NLI: Analyzes ALL evidence in ONE API call.
+ * This is the critical fix for Rate Limits (429) and Accuracy.
  */
-export async function performNLI(claimText, evidenceText, canonicalClaim) {
+export async function performNLI_Batch(claimText, evidenceList, canonicalClaim) {
+  if (isRateLimited()) return { rateLimited: true };
   if (!isGeminiConfigured()) return null;
 
-  // Read API key at runtime
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  
   const today = new Date().toISOString().split('T')[0];
   const timeContext = canonicalClaim?.time || 'present';
 
-  const prompt = `You are a Natural Language Inference (NLI) system. Your task is to determine if the EVIDENCE logically ENTAILS, CONTRADICTS, or is NEUTRAL to the CLAIM.
+  // Format the evidence list into a clear text block for the AI
+  const evidenceString = evidenceList
+    .map((e, i) => `Source ${i + 1}: "${e.text}" (URL: ${e.source?.url || 'N/A'})`)
+    .join('\n\n');
 
-CRITICAL RULES:
-1. ENTAILMENT: Use when evidence PROVES the claim is TRUE. Be decisive - if evidence confirms the claim, use ENTAILMENT.
-   Examples:
-   - Claim: "Tokyo is the capital of Japan"
-   - Evidence: "Tokyo is the capital and largest city of Japan"
-   - Answer: ENTAILMENT (evidence directly confirms the claim)
+  const prompt = `
+  You are an expert Fact Checker. Your task is to verify a CLAIM against a list of RETRIEVED EVIDENCE.
 
-2. CONTRADICTION: Use when evidence PROVES the claim is FALSE. Be decisive - if evidence contradicts the claim, use CONTRADICTION.
-   Examples:
-   - Claim: "Antarctica is on North Pole"
-   - Evidence: "Antarctica is located at the South Pole"
-   - Answer: CONTRADICTION (evidence directly contradicts the claim)
+  CLAIM: "${claimText}"
 
-3. NEUTRAL: Use ONLY when evidence is completely unrelated or provides no information about the claim.
-   Do NOT use NEUTRAL if evidence is related but you're uncertain - be decisive based on what the evidence says.
+  RETRIEVED EVIDENCE:
+  ${evidenceString}
 
-Current date: ${today}
-Time context: ${timeContext}
+  CONTEXT: 
+  - Today's Date: ${today}
+  - Time Context: ${timeContext}
 
-CLAIM: "${claimText}"
+  INSTRUCTIONS:
+  1. Analyze the evidence. Does it support (ENTAIL) or contradict the claim?
+  2. If sources contradict each other, trust the most recent or authoritative one (e.g. government/official sites).
+  3. If the claim is about a current official (e.g. "President of USA"), check the date. If today is 2026, Biden/Trump/etc status might have changed.
+  4. IGNORE irrelevant evidence.
 
-EVIDENCE: "${evidenceText}"
-
-Analyze: Does the evidence prove the claim TRUE (ENTAILMENT), prove it FALSE (CONTRADICTION), or provide no relevant information (NEUTRAL)?
-
-Respond ONLY with valid JSON:
-{
-  "relationship": "ENTAILMENT" | "CONTRADICTION" | "NEUTRAL",
-  "confidence": 0.0-1.0
-}`;
+  OUTPUT FORMAT (JSON ONLY):
+  {
+    "verdict": "TRUE" | "FALSE" | "MIXED",
+    "confidence": 0-100,
+    "explanation": "One short sentence explaining the verdict based on the sources."
+  }
+  `;
 
   try {
     const response = await axios.post(
@@ -75,62 +68,65 @@ Respond ONLY with valid JSON:
       {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.0,
-          topK: 1,
-          topP: 0.8,
-          maxOutputTokens: 200
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
+          temperature: 0.1, // Low temp for strict logic
+          responseMimeType: "application/json" // Force strict JSON output
+        }
       },
-      { timeout: 10000 }
+      { timeout: 15000 }
     );
 
-    const raw =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
+    const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
     if (!raw) return null;
 
-    let cleaned = raw.replace(/```json|```/g, '').trim();
-    
-    // Try to extract JSON if wrapped in other text
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleaned = jsonMatch[0];
+    // Clean up Markdown if present (Gemini sometimes adds ```json ... ```)
+    let cleanJson = raw.trim();
+    if (cleanJson.startsWith('```')) {
+      cleanJson = cleanJson.replace(/^```(json)?|```$/g, '').trim();
     }
-    
-    const parsed = JSON.parse(cleaned);
 
-    let relationship = (parsed.relationship || '').toUpperCase().trim();
-    
-    // Normalize relationship values
-    if (relationship.includes('ENTAIL') || relationship === 'TRUE' || relationship === 'SUPPORT') {
-      relationship = 'ENTAILMENT';
-    } else if (relationship.includes('CONTRADICT') || relationship === 'FALSE' || relationship === 'DISPROVE') {
-      relationship = 'CONTRADICTION';
-    } else if (relationship.includes('NEUTRAL') || relationship === 'UNKNOWN' || relationship === 'UNCLEAR') {
-      relationship = 'NEUTRAL';
-    }
-    
-    if (!['ENTAILMENT', 'CONTRADICTION', 'NEUTRAL'].includes(relationship)) {
-      return null;
-    }
+    const parsed = JSON.parse(cleanJson);
 
     return {
-      relationship,
-      confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5))
+      verdict: parsed.verdict.toLowerCase(), // 'true', 'false', 'mixed'
+      confidence: parsed.confidence,
+      explanation: parsed.explanation
     };
+
   } catch (error) {
-    // Log error for debugging
-    console.error('❌ [Gemini] NLI Error:', error.message);
-    if (error.response) {
-      console.error('❌ [Gemini] Response status:', error.response.status);
-      console.error('❌ [Gemini] Response data:', JSON.stringify(error.response.data).substring(0, 200));
+    // Handle Rate Limits
+    if (error.response && error.response.status === 429) {
+      console.error('❌ [Gemini] Rate Limit Exceeded (429). Pausing NLI requests for 60s.');
+      rateLimitUntil = Date.now() + 60000;
+      return { rateLimited: true };
     }
+
+    console.error('❌ [Gemini] Batch NLI Error:', error.message);
     return null;
+  }
+}
+
+/**
+ * Rewrite claim using context (Coreference Resolution)
+ */
+export async function rewriteClaim(claimText, context = []) {
+  if (!isGeminiConfigured() || !context || context.length === 0) return claimText;
+
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const prompt = `Rewrite the LAST_CLAIM to be standalone by replacing pronouns (he, she, it) with entities from CONTEXT.\n\nCONTEXT:\n${context.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\nLAST_CLAIM: "${claimText}"\n\nOUTPUT: Rewritten claim only.`;
+
+  try {
+    const response = await axios.post(
+      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 100 }
+      },
+      { timeout: 5000 }
+    );
+    const rewritten = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return rewritten ? rewritten.trim().replace(/^"|"$/g, '') : claimText;
+  } catch (error) {
+    return claimText;
   }
 }

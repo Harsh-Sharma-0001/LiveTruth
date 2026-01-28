@@ -1,8 +1,17 @@
 import ViewAllModal from './ViewAllModal';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 function SourceFeed({ claims, showAll, onShowAll, onClose }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const scrollRef = useRef(null);
+
+  // Auto-scroll to bottom of feed when new claims arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [claims]);
+
   const getStatusIcon = (verdict) => {
     switch (verdict) {
       case 'true':
@@ -24,9 +33,15 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         );
+      case 'source_only':
+        return (
+          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        );
       default:
         return (
-          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
@@ -42,6 +57,8 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
       case 'misleading':
       case 'mixed':
         return 'MIXED';
+      case 'source_only':
+        return 'SOURCE LINK';
       default:
         return 'CHECKING...';
     }
@@ -56,8 +73,10 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
       case 'misleading':
       case 'mixed':
         return 'text-yellow-500';
+      case 'source_only':
+        return 'text-blue-500';
       default:
-        return 'text-gray-400';
+        return 'text-gray-500';
     }
   };
 
@@ -76,17 +95,18 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
     return `${diffDays}d ago`;
   };
 
-  // Sort claims by timestamp (most recent first)
   const sortedClaims = [...claims].sort((a, b) => {
     const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
     const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-    return timeB - timeA;
+    return timeA - timeB;
   });
 
   return (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+    // FIX: Default is gray-800, Dark mode is Black
+    <div className="bg-gray-800 dark:bg-gray-900 rounded-xl border border-gray-700 dark:border-gray-800 overflow-hidden shadow-lg h-full flex flex-col transition-colors duration-300">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-700 flex items-center justify-between">
+      <div className="px-6 py-5 border-b border-gray-700 dark:border-gray-800 flex items-center justify-between flex-none">
+        {/* FIX: Text white */}
         <h2 className="text-xl font-bold text-white">Source Feed</h2>
         {claims.length > 0 && (
           <button 
@@ -99,15 +119,20 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
       </div>
 
       {/* Feed Content */}
-      <div className="overflow-hidden">
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto" 
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937' }}
+      >
         {sortedClaims.length === 0 ? (
           <div className="px-6 py-8 text-center text-gray-500">
             <p>No claims verified yet. Start speaking to see real-time fact-checking...</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-700">
-            {sortedClaims.slice(0, 3).map((claim, index) => (
-              <div key={index} className="px-6 py-4 hover:bg-gray-750 transition-colors">
+          <div className="divide-y divide-gray-700 dark:divide-gray-800">
+            {sortedClaims.map((claim, index) => (
+              // FIX: Hover effect is dark gray, text is light
+              <div key={index} className="px-6 py-4 hover:bg-gray-700/50 dark:hover:bg-gray-900 transition-colors">
                 <div className="flex items-start gap-3">
                   <div className="mt-1">
                     {getStatusIcon(claim.verdict || 'unverified')}
@@ -118,16 +143,17 @@ function SourceFeed({ claims, showAll, onShowAll, onClose }) {
                         {getStatusLabel(claim.verdict || 'unverified')}
                       </span>
                       {claim.verdict === 'unverified' && (
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       )}
                     </div>
-                    <p className="text-sm text-gray-300 mb-2 line-clamp-2">
+                    {/* FIX: Text is light gray (300) instead of dark (800) */}
+                    <p className="text-sm text-gray-200 dark:text-gray-300 mb-2 line-clamp-2">
                       "{claim.claim}"
                     </p>
                     {claim.explanation && (
-                      <p className="text-xs text-gray-500 mb-2">
+                      <p className="text-xs text-gray-400 mb-2">
                         Context: {claim.explanation}
                       </p>
                     )}

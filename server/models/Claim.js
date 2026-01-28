@@ -10,9 +10,11 @@ const claimSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  claimHash: { type: String, index: true }, // For exact match
+  embedding: { type: [Number], index: true }, // For semantic match (vector)
   verdict: {
     type: String,
-    enum: ['true', 'false', 'misleading', 'unverified'],
+    enum: ['true', 'false', 'mixed', 'source_only'],
     required: true
   },
   confidence: {

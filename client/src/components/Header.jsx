@@ -42,16 +42,17 @@ function Header({ isListening, setIsListening, onTranscript }) {
   useEffect(() => {
     localStorage.setItem('livetruth_darkMode', darkMode.toString());
     // Apply dark mode to document and body
+    // Apply dark mode to document and body
     if (darkMode) {
       document.documentElement.classList.add('dark');
       document.body.classList.add('dark');
-      document.body.style.background = '#000000'; // Pure black for dark mode
+      document.body.style.background = '#000000'; // Pure Black for dark mode
       document.body.style.color = '#f3f4f6';
     } else {
       document.documentElement.classList.remove('dark');
       document.body.classList.remove('dark');
-      document.body.style.background = '#111827'; // Blueish gray for light mode
-      document.body.style.color = '#f3f4f6';
+      document.body.style.background = '#1a1f2e'; // Bluish for light mode
+      document.body.style.color = '#f3f4f6'; // Keep text light even in "light" mode as bg is dark
     }
   }, [darkMode]);
   
@@ -65,7 +66,7 @@ function Header({ isListening, setIsListening, onTranscript }) {
     } else {
       document.documentElement.classList.remove('dark');
       document.body.classList.remove('dark');
-      document.body.style.background = '#111827';
+      document.body.style.background = '#1a1f2e';
     }
   }, []);
   
@@ -74,7 +75,7 @@ function Header({ isListening, setIsListening, onTranscript }) {
     if (darkMode) {
       document.body.style.background = '#000000';
     } else {
-      document.body.style.background = '#111827';
+      document.body.style.background = '#1a1f2e';
     }
   }, []);
 
@@ -352,7 +353,7 @@ function Header({ isListening, setIsListening, onTranscript }) {
                 </div>
 
                 {/* Auto-Save Toggle */}
-                <div className="px-4 py-3 transition-colors cursor-pointer" onClick={() => setAutoSave(!autoSave)} style={{ backgroundColor: '#1a1f2e', opacity: 1 }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#374151'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1a1f2e'}>
+                <div className="px-4 py-3 transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); setAutoSave(!autoSave); }} style={{ backgroundColor: '#1a1f2e', opacity: 1 }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#374151'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1a1f2e'}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,7 +368,7 @@ function Header({ isListening, setIsListening, onTranscript }) {
                 </div>
 
                 {/* Notifications Toggle */}
-                <div className="px-4 py-3 transition-colors cursor-pointer" onClick={() => setNotifications(!notifications)} style={{ backgroundColor: '#1a1f2e', opacity: 1 }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#374151'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1a1f2e'}>
+                <div className="px-4 py-3 transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); setNotifications(!notifications); }} style={{ backgroundColor: '#1a1f2e', opacity: 1 }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#374151'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1a1f2e'}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -382,7 +383,7 @@ function Header({ isListening, setIsListening, onTranscript }) {
                 </div>
 
                 {/* Dark Mode Toggle */}
-                <div className="px-4 py-3 transition-colors cursor-pointer" onClick={() => setDarkMode(!darkMode)} style={{ backgroundColor: '#1a1f2e', opacity: 1 }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#374151'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1a1f2e'}>
+                <div className="px-4 py-3 transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); setDarkMode(!darkMode); }} style={{ backgroundColor: '#1a1f2e', opacity: 1 }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#374151'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1a1f2e'}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
