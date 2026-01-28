@@ -3,8 +3,26 @@
 **LiveTruth** is a high-performance, real-time fact-checking application that listens to live audio, transcribes it, and instantly verifies claims using a hybrid AI architecture. It combines the speed of traditional search APIs with the reasoning power of modern LLMs (Gemini 2.5 Flash Lite) to provide accurate, source-backed verdicts.
 
 
-![LiveTruth Dashboard](./screenshots/dashboard-preview.png)
- 
+<img width="954" height="599" alt="1" src="https://github.com/user-attachments/assets/428aa65f-df9d-4b95-967a-fe59b33c5a16" />
+<img width="959" height="599" alt="2" src="https://github.com/user-attachments/assets/00c0f2a7-2e83-4d0b-af46-702878713738" />
+<img width="959" height="599" alt="3" src="https://github.com/user-attachments/assets/4aa5e068-c87c-4116-86a8-d4f3ed9002e4" />
+<img width="959" height="599" alt="4" src="https://github.com/user-attachments/assets/00af9cdc-b72c-482d-80f5-e6f20416b915" />
+<img width="959" height="599" alt="5" src="https://github.com/user-attachments/assets/65469127-1979-402c-9f26-ed77597d0e5b" />
+<img width="959" height="599" alt="6" src="https://github.com/user-attachments/assets/65592bad-264a-4300-bb5e-5413139c51e6" />
+<img width="959" height="599" alt="7" src="https://github.com/user-attachments/assets/e77de10a-d47a-4f95-b472-1adf14713bad" />
+<img width="959" height="599" alt="8" src="https://github.com/user-attachments/assets/fbe366ad-8635-4ce8-ac74-91c61e853bc7" />
+<img width="959" height="599" alt="9" src="https://github.com/user-attachments/assets/80c2a174-1726-4d6f-a0fb-a4b347cab25d" />
+<img width="959" height="599" alt="10" src="https://github.com/user-attachments/assets/40d99cb9-0131-4a0f-8b22-c80ba7db2997" />
+<img width="958" height="599" alt="11" src="https://github.com/user-attachments/assets/aedfe9c8-c6d7-4e61-bdcc-1a5c370c21e3" />
+<img width="959" height="599" alt="12" src="https://github.com/user-attachments/assets/25a90ba8-2249-43de-88f2-d0325c043660" />
+<img width="959" height="599" alt="13" src="https://github.com/user-attachments/assets/90ab42ba-bf90-40ef-8011-c8763595826b" />
+<img width="959" height="599" alt="14" src="https://github.com/user-attachments/assets/5f196516-f7c6-4fe9-b372-594c11caea26" />
+<img width="959" height="599" alt="15" src="https://github.com/user-attachments/assets/e3086929-4932-42a2-a648-3d0c8ed309ae" />
+<img width="959" height="599" alt="16" src="https://github.com/user-attachments/assets/fe2adcfc-92e3-4a56-b4e7-66d689d668c8" />
+<img width="955" height="599" alt="17" src="https://github.com/user-attachments/assets/b572fda5-4003-4a2f-ae5a-8c20fd167f8c" />
+<img width="959" height="599" alt="18" src="https://github.com/user-attachments/assets/93c75253-cf6b-4222-99d1-3ddc99e7c541" />
+<img width="959" height="599" alt="19" src="https://github.com/user-attachments/assets/6bcb7fdd-2027-4e20-a919-e8bcf5b6b986" />
+<img width="959" height="599" alt="20" src="https://github.com/user-attachments/assets/03b59fd8-712c-409f-a01b-9adafbc0d3f2" />
 
 
 ## 🚀 Key Features
