@@ -144,7 +144,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Database connection (optional - app works without it)
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/livetruth';
+// Database connection (optional - app works without it)
+const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/livetruth';
 mongoose.connect(MONGODB_URI)
 .then(() => console.log('✅ MongoDB connected'))
 .catch(err => {

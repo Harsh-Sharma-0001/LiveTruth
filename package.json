@@ -4,6 +4,7 @@
   "description": "Real-Time Fact Checker for LIVE Speech",
   "main": "server/index.js",
   "scripts": {
+    "test": "echo \"No tests yet\" && exit 0",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && node index.js",
     "client": "cd client && npm run dev",
